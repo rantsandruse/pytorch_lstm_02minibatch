@@ -84,14 +84,35 @@ After training is done, we can visualize our training vs. validation loss in the
 
      lstm_out, (h, c) = self.lstm(embeds.view(len(sentence), 1, -1))
 
-   While in this tutorial, we drew the hidden state from a random uniform distribution using torch.rand and then feed it into our LSTM network:
+   While in this tutorial, we drew the hidden state from a random uniform distribution using torch.rand :
 
-     lstm_out, self.hidden = self.lstm(embeds, self.hidden)
+    def init_hidden(self):
+        '''
+        Initiate hidden states.
+        '''
+        # Shape for hidden state and cell state: num_layers * num_directions, batch, hidden_size
+        h_0 = torch.randn(1, self.batch_size, self.hidden_dim)
+        c_0 = torch.randn(1, self.batch_size, self.hidden_dim)
+
+        # The Variable API is now semi-deprecated, so we use nn.Parameter instead.
+        # Note: For Variable API requires_grad=False by default;
+        # For Parameter API requires_grad=True by default.
+        h_0 = nn.Parameter(h_0, requires_grad=True)
+        c_0 = nn.Parameter(c_0, requires_grad=True)
+
+        return h_0, c_0
+
+And then we feed it and then feed it into our LSTM network: 
+
+    hidden_0 = self.init_hidden()
+    embeds = self.word_embeddings(sentences)
+    ...     
+    lstm_out, _ = self.lstm(embeds, hidden_0)
 
    At this point you might be asking a couple of questions:
    **First, What was the initial hidden state for our LSTM network in tutorial 1 (I don't remember parsing it in...)?**
 
-   This has a simple answer: If you don't parse in hidden state, it is set to zero by default. 
+   This has a simple answer: If you don't parse in hidden state explicitly, it is set to zero by default. 
       
    **And shall we initialize our hidden state randomly or simply set them to zeros**?
 
@@ -157,7 +178,7 @@ After training is done, we can visualize our training vs. validation loss in the
 
   2. Feed it into your LSTM model
      
-    lstm_out, self.hidden = self.lstm(embeds, self.hidden)
+    lstm_out, _ = self.lstm(embeds, hidden_0)
   
   Note: we no longer need to reshape the input as we did in tutorial 1.  Since we used the *batch_first=True* option, the 
   input to LSTM here is already (*batch_size, seq_len, hidden_dim*))
