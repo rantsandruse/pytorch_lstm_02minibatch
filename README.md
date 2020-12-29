@@ -5,7 +5,7 @@ multiple epochs. In this tutorial, I will show you how to train an LSTM model in
 variable initialization and padding. Again, I will break it down into Q & A format: 
 
  ## Why do we need to train in mini-batches?   
-Deep neural networks are data hungry and needs to be trained with a large volume of data. 
+Deep neural networks are data hungry and need to be trained with a large volume of data. 
 If you were to train your deep neural network in a single batch, there are a couple of problems: 
 1. All of your data may not fit in memory. You will likely run into an out-of-memory error from the get-go. 
 2. Now assume that you have all the memory you desire and will never run into OOM error, training all data in a single batch 
