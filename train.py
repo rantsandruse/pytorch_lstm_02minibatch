@@ -7,11 +7,56 @@ import torch
 import torch.nn.functional as F
 import pandas as pd
 
+
 from sklearn.model_selection import KFold
 from torch.utils.data import DataLoader, TensorDataset
 
+def train_val_test_split(X, X_lens, y, train_val_split = 10, trainval_test_split = 10):
+    '''
+    Pre-split data to train, val and test.
+    Parameters
+    ----------
+    X
+    X_lens
+    y
+    train_val_split
+    trainval_test_split
 
-def train(model, loss_fn, X, y, X_lens, optimizer, n_epochs = 5, batch_size = 2,
+    Returns
+    -------
+
+    '''
+    # We switch over to stratified kfold
+    splits = KFold(n_splits=trainval_test_split, shuffle=True, random_state=42)
+    for trainval_idx, test_idx in splits.split(X, y):
+        X_trainval, X_test = X[trainval_idx], X[test_idx]
+        y_trainval, y_test = y[trainval_idx], y[test_idx]
+        X_lens_trainval, X_lens_test = X_lens[trainval_idx], X_lens[test_idx]
+
+    splits = KFold(n_splits=train_val_split, shuffle=True, random_state=28)
+
+    for train_idx, val_idx in splits.split(X_trainval, y_trainval):
+        X_train, X_val = X_trainval[train_idx], X_trainval[val_idx]
+        y_train, y_val = y_trainval[train_idx], y_trainval[val_idx]
+        X_lens_train, X_lens_val = X_lens_trainval[train_idx], X_lens_trainval[val_idx]
+
+    train_dataset = TensorDataset(torch.tensor(X_train, dtype = torch.long),
+                                  torch.tensor(y_train, dtype=torch.long),
+                                  torch.tensor(X_lens_train, dtype=torch.int64))
+
+    val_dataset = TensorDataset(torch.tensor(X_val, dtype=torch.long),
+                                torch.tensor(y_val, dtype=torch.long),
+                                torch.tensor(X_lens_val, dtype=torch.int64))
+
+    test_dataset = TensorDataset(torch.tensor(X_test, dtype=torch.long),
+                                 torch.tensor(y_test, dtype=torch.long),
+                                 torch.tensor(X_lens_test, dtype=torch.int64))
+
+
+    return train_dataset, val_dataset, test_dataset
+
+
+def train(model, train_dataset, val_dataset, loss_fn, optimizer, n_epochs = 5, batch_size = 2,
           seq_len = 5):
     '''
     Parameters
@@ -35,20 +80,8 @@ def train(model, loss_fn, X, y, X_lens, optimizer, n_epochs = 5, batch_size = 2,
     # Use scikit learn stratified k-fold.
     # I gave up on the initial choice of pytorch random_split, as it would not return indices.
     # train_dataset, val_dataset = random_split(dataset, [16,4])
-    splits = KFold(n_splits=5, shuffle=True, random_state=42)
-    for train_idx, test_idx in splits.split(X,y):
-        X_train, X_test = torch.tensor(X[train_idx], dtype = torch.long), \
-                          torch.tensor(X[test_idx], dtype = torch.long)
-        y_train, y_test = torch.tensor(y[train_idx], dtype = torch.long), \
-                          torch.tensor(y[test_idx], dtype = torch.long)
-        X_lens_train, X_lens_test = torch.tensor(X_lens[train_idx], dtype=torch.float), \
-                                    torch.tensor(X_lens[test_idx], dtype = torch.float)
-
-    train_dataset = TensorDataset(X_train, y_train, X_lens_train)
-    test_dataset = TensorDataset(X_test, y_test, X_lens_test)
-
-    train_loader = DataLoader(dataset = train_dataset, batch_size = batch_size)
-    val_loader = DataLoader(dataset = test_dataset, batch_size = batch_size)
+    train_loader = DataLoader(dataset = train_dataset, batch_size = batch_size, drop_last=True)
+    val_loader = DataLoader(dataset = val_dataset, batch_size = batch_size, drop_last=True)
     epoch_train_losses = []
     epoch_val_losses = []
 
@@ -59,11 +92,7 @@ def train(model, loss_fn, X, y, X_lens, optimizer, n_epochs = 5, batch_size = 2,
             optimizer.zero_grad()
             ypred_batch = model(X_batch, X_lens_batch)
 
-            # flatten y_batch and ypred_batch
-            y_batch = y_batch.view(batch_size * seq_len)
-            ypred_batch = ypred_batch.view(batch_size * seq_len, -1)
-
-            loss = loss_fn(ypred_batch.view(batch_size*seq_len, -1),
+            loss = loss_fn(ypred_batch.view(batch_size * seq_len, -1),
                            y_batch.view(batch_size * seq_len))
             loss.backward()
             optimizer.step()
@@ -75,10 +104,7 @@ def train(model, loss_fn, X, y, X_lens, optimizer, n_epochs = 5, batch_size = 2,
                 ypred_val = model(X_val, X_lens_val)
 
                 # flatten first
-                ypred_val = ypred_val.view(batch_size*seq_len, -1)
-                y_val = y_val.view(batch_size * seq_len)
-
-                val_loss = loss_fn(ypred_val,y_val)
+                val_loss = loss_fn(ypred_val.view(batch_size*seq_len, -1), y_val.view(batch_size * seq_len))
                 val_losses.append(val_loss.item())
 
         epoch_train_losses.append(np.mean(train_losses))

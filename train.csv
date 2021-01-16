@@ -19,4 +19,12 @@ text,tag
 "The dog ate the apple","DET NN V DET NN"
 "The dog ate the apple","DET NN V DET NN"
 "Everybody read the book","NN V DET NN"
+"The dog ate the book", "NN V DET NN"
+"Everybody read the book","NN V DET NN"
+"The dog ate the apple","DET NN V DET NN"
+"Everybody read the book","NN V DET NN"
+"The dog ate the apple","DET NN V DET NN"
+"Everybody read the book","NN V DET NN"
+"The dog ate the apple","DET NN V DET NN"
+"Everybody read the book","NN V DET NN"
 

@@ -14,7 +14,7 @@ import pandas as pd
 
 from pytorch_lstm_02minibatch.preprocess import seq_to_embedding, seqs_to_dictionary
 from pytorch_lstm_02minibatch.model_lstm_tagger import LSTMTagger
-from pytorch_lstm_02minibatch.train import train, test, plot_loss
+from pytorch_lstm_02minibatch.train import train, test, plot_loss, train_val_test_split
 from pytorch_lstm_02minibatch.preprocess import pad_sequences
 
 torch.manual_seed(1)
@@ -46,26 +46,18 @@ y = pad_sequences([ seq_to_embedding(x, tag_to_ix) for x in tags_list], maxlen =
 
 model = LSTMTagger(EMBEDDING_DIM, HIDDEN_DIM, len(word_to_ix), len(tag_to_ix)-1)
 optimizer = optim.SGD(model.parameters(), lr=0.1)
-loss_fn = nn.CrossEntropyLoss(ignore_index=-1, size_average=True)
+loss_fn = nn.CrossEntropyLoss(ignore_index=-1, reduction='mean')
 
 
 # Training
-train_loss, val_loss = train(model, loss_fn, X, y, X_lens, optimizer, n_epochs = 100)
+train_dataset, val_dataset, test_dataset = train_val_test_split(X, X_lens, y)
+train_loss, val_loss = train(model, train_dataset, val_dataset, loss_fn, optimizer, n_epochs = 100)
 
 # Examine training results
 plot_loss(train_loss, val_loss)
 
-# After examining loss, run inference only:
-testing_data = ["Everybody read the book", "The apple ate the dog"]
-# Take a look at the results.
-# We expect it to be roughly match up with [[1, 2, 0, 1], [0, 1, 2, 0, 0]]
-test_texts = [t.split() for t in testing_data]
-X_test = pad_sequences([seq_to_embedding(x, word_to_ix) for x in test_texts],
-                       maxlen=5, padding="post", value=0)
-X_test_lengths = [5, 4]
-X_test_tensor= torch.tensor(X_test, dtype=torch.long)
-X_test_lengths_tensor = torch.tensor(X_test_lengths, dtype=torch.float)
-tag_prob = test(model, X_test_tensor, X_test_lengths_tensor)
+# Calculate probability for test_dataset
+tag_prob = test(model, test_dataset.tensors[0], test_dataset.tensors[2])
 
 # convert to probability
 print(tag_prob)

@@ -1,49 +1,62 @@
 # Learning Pytorch in Ten Days: Day 2 - Train an LSTM model in minibatch (with proper initialization and padding) 
 
-In day 1 tutorial, we've learned how to work with a very simple LSTM network, by training the model on all available data over 
+In day 1 tutorial, we've learned how to work with a very simple LSTM network, by training the model on a single batch of toy data over 
 multiple epochs. In this tutorial, I will show you how to train an LSTM model in minibatches, with proper 
-variable initialization and padding. Again, I will break it down into Q & A format: 
+variable initialization and padding. 
 
  ## Why do we need to train in mini-batches?   
 Deep neural networks are data hungry and need to be trained with a large volume of data. 
 If you were to train your deep neural network in a single batch, there are a couple of problems: 
-1. All of your data may not fit in memory. You will likely run into an out-of-memory error from the get-go. 
-2. Now assume that you have all the memory you desire and will never run into OOM error, training all data in a single batch 
-   is still far from ideal. Prior research has shown that a large mini-batch based training routine will oftentimes lead 
-   you to a sharp minima when you have a rugged loss function landscape via stochastic gradient descent, and become 
-   irreversible stuck there. We will discuss the effect of batch size/learning rate on model training in tutorial 4 and 7. So please give me the benefit of the doubt for now. 
+1. All of your data may not fit in memory. You will likely run into an out-of-memory error. 
+2. Even if you have all the memory you want and will never run into OOM error, training all data in a single batch 
+   is not ideal. Prior research showed that a large mini-batch based training routine oftentimes lead 
+   to a sharp minima and poor generalization ([Neskar et al](https://arxiv.org/pdf/1609.04836.pdf))
    
-Please note that this practice of training in mini-batches is not just for deep neural networks, but for any model with 
-stochastic gradient descent based implementation, such as SVM, random forest and GBM. If you have not come across mini batch 
-based training in sklearn tutorials, that's most likely because these examples are for purposes of illustration and relies 
-on a small training/testing dataset. 
+This practice of training in mini-batches is not just applicable to deep neural networks, but for any model((e.g. SVM, 
+random forest & GBM) with stochastic gradient descent based implementation.  
 
 ## How do we break down data into minibatches for training etc.?  
-   First, we need break our data into two parts, training and validation. (Note: this is an incomplete breakdown. For ML
-   best practice, we must have train:validation:test. Better still is to have the test dataset from a completely different 
-   dataset than the train/validation. We will show how the proper train/val/test split is done in tutorial 4 and onward.) 
-   Here I choose to use *kFold* from *sklearn.model_selection*:
-            
-        splits = KFold(n_splits=5, shuffle=True, random_state=42)
-            for train_idx, test_idx in splits.split(X,y):
-                X_train, X_test = torch.tensor(X[train_idx], dtype = torch.long), torch.tensor(X[test_idx], dtype = torch.long)
-                y_train, y_test = torch.tensor(y[train_idx], dtype = torch.long), torch.tensor(y[test_idx], dtype = torch.long)
-                X_lens_train, X_lens_test = torch.tensor(X_lens[train_idx], dtype=torch.float), torch.tensor(X_lens[test_idx], dtype = torch.float)
-   
-   This is one option but not necessarily the only option. You may also consider *sklearn.model_selection.train_test_split*, 
-   or torch.random_split. sklearn.model_selection.stratefiedKFold cannot be used here, as our target is a sequence instead of a discrete number, making stratification non-trivial:  
-    
-   And then we separate the data into small batches using pytorch's *DataLoader*:
+   First, we will break our data into three parts: training, validation and test in *train_val_test_split* (link): 
+   Here I choose to use *kFold* from *sklearn.model_selection*. Note that *sklearn.model_selection.stratefiedKFold* cannot be used here, as our target is a sequence instead of a 
+   discrete number, making stratification non-trivial:  
 
-        test_dataset = TensorDataset(X_test, y_test, X_lens_test)
-        train_dataset = TensorDataset(X_train, y_train, X_lens_train) 
+    def train_val_test_split(X, X_lens, y, train_val_split = 10, trainval_test_split = 10):
+        splits = KFold(n_splits=trainval_test_split, shuffle=True, random_state=42)
+        for trainval_idx, test_idx in splits.split(X, y):
+            X_trainval, X_test = X[trainval_idx], X[test_idx]
+            y_trainval, y_test = y[trainval_idx], y[test_idx]
+            X_lens_trainval, X_lens_test = X_lens[trainval_idx], X_lens[test_idx]
+    
+        splits = KFold(n_splits=train_val_split, shuffle=True, random_state=28)
+    
+        for train_idx, val_idx in splits.split(X_trainval, y_trainval):
+            X_train, X_val = X_trainval[train_idx], X_trainval[val_idx]
+            y_train, y_val = y_trainval[train_idx], y_trainval[val_idx]
+            X_lens_train, X_lens_val = X_lens_trainval[train_idx], X_lens_trainval[val_idx]
+    
+        train_dataset = TensorDataset(torch.tensor(X_train, dtype = torch.long),
+                                      torch.tensor(y_train, dtype=torch.long),
+                                      torch.tensor(X_lens_train, dtype=torch.int64))
+    
+        val_dataset = TensorDataset(torch.tensor(X_val, dtype=torch.long),
+                                    torch.tensor(y_val, dtype=torch.long),
+                                    torch.tensor(X_lens_val, dtype=torch.int64))
+    
+        test_dataset = TensorDataset(torch.tensor(X_test, dtype=torch.long),
+                                     torch.tensor(y_test, dtype=torch.long),
+                                     torch.tensor(X_lens_test, dtype=torch.int64))
+    
+        return train_dataset, val_dataset, test_dataset
+        
+   And then we separate the training data and validation data into small batches using pytorch's *DataLoader* in train.py: 
    
         train_loader = DataLoader(dataset = train_dataset, batch_size = batch_size)
         val_loader = DataLoader(dataset = test_dataset, batch_size = batch_size)
    
    (Note: you could also try *BucketIterator* from *torchtext*.)
 
-   We also need to monitor our validation vs. training loss over time to make sure that we are not overfitting to the training data: 
+   We also need to monitor our validation vs. training loss over time to make sure that we are not overfitting too much 
+   onto the training data: 
         
         for epoch in range(n_epochs):
             train_losses = []
@@ -53,9 +66,6 @@ on a small training/testing dataset.
                 ypred_batch = model(X_batch, X_lens_batch)
 
                 # flatten y_batch and ypred_batch
-                y_batch = y_batch.view(batch_size * seq_len)
-                ypred_batch = ypred_batch.view(batch_size * seq_len, -1)
-
                 loss = loss_fn(ypred_batch.view(batch_size*seq_len, -1), y_batch.view(batch_size * seq_len))
                 loss.backward()
                 optimizer.step()
@@ -67,10 +77,7 @@ on a small training/testing dataset.
                 ypred_val = model(X_val, X_lens_val)
 
                 # flatten first
-                ypred_val = ypred_val.view(batch_size*seq_len, -1)
-                y_val = y_val.view(batch_size * seq_len)
-
-                val_loss = loss_fn(ypred_val,y_val)
+                val_loss = loss_fn(ypred_val.view(batch_size*seq_len, -1), y_val.view(batch_size * seq_len))
                 val_losses.append(val_loss.item())
 
         epoch_train_losses.append(np.mean(train_losses))
@@ -109,7 +116,7 @@ And then we feed it and then feed it into our LSTM network:
     ...     
     lstm_out, _ = self.lstm(embeds, hidden_0)
 
-   At this point you might be asking a couple of questions:
+   At this point you might ask:
    **First, What was the initial hidden state for our LSTM network in tutorial 1 (I don't remember parsing it in...)?**
 
    This has a simple answer: If you don't parse in hidden state explicitly, it is set to zero by default. 
@@ -132,13 +139,7 @@ And then we feed it and then feed it into our LSTM network:
 
    c. Learn a default initial hidden state: If we have many samples requiring a state reset for each of them, such as 
       in a sentiment analysis/sequence classification problem, it makes sense to learn a default initial state. But
-      if there are only a few long sequences with a handful of state resets, then learning a default state is prone to overfitting as well. 
-      
-   d. Silviu used PTB dataset with different initialization methods described above, and made a number of corroborative observations. he showed that: 
-        i. All non-zero state initializations sped up training and improved generalization.
-        ii. Training the initial state as a variable was more effective than using a noisy zero-mean initial state.
-        iii. Adding noise to a variable initial state provided only marginal benefit.
-        iv. These non-zero state initializations will only really be useful for datasets that have many naturally-occuring state resets.
+      if there are only a few long sequences with a handful of state resets, then learning a default state is prone to overfitting as well.
 
    In our case, we are working with a tiny toy dataset, so it doesn't matter much which initialization we use. But ultimately we want to 
    build a sentiment classifier for IMDB reviews, therefore either b or c would be more appropriate. We implemented b in the code: 
@@ -165,7 +166,7 @@ And then we feed it and then feed it into our LSTM network:
   But padding your sentence without proper downstream processing could have unintended consequences: 
   
   Imagine that you have a training dataset with 99% of sentences under 10 words, and 1% with 100 words or more. For 99% of the time, 
-  your model will try to learning paddings, instead of focusing on the actual sequence with meaningful features.  
+  your model will try to learn paddings, instead of focusing on the actual sequence with meaningful features.  
   
   This is very inefficient. As your LSTM model will waste most of its time learning hidden states for paddings and not the actual sequence. 
   Besides, since we are training a seq2seq model, if you don't explicitly neglect these sequence paddings, then 
@@ -189,8 +190,8 @@ And then we feed it and then feed it into our LSTM network:
      
   Note: parsing in total_length is a must, otherwise you might run into dimension mismatch.
 
-  4. Last but not least, ask your loss function to ignore the padding, and only use the not ignored elements to calculate 
-     the mean loss:
+  4. Last but not least, ask your loss function to ignore the padding using ignore_index=-1. (Note that you also need to make
+     sure that you set padding index to -1, so that the predicted tags are aligned with the true tags.)
      
     loss_fn = nn.CrossEntropyLoss(ignore_index=-1, size_average=True)     
 
@@ -209,10 +210,7 @@ And then we feed it and then feed it into our LSTM network:
  4. [How to mask/ignore index in cross entropy loss](https://discuss.pytorch.org/t/ignore-index-in-the-cross-entropy-loss/25006/6)
  5. [zero vs. random initialization](https://r2rt.com/non-zero-initial-states-for-recurrent-neural-networks.html)
  5. [Paper on proper initialization of recurrent NN hidden states, See Trick 3](http://www.scs-europe.net/conf/ecms2015/invited/Contribution_Zimmermann_Grothmann_Tietz.pdf)
- 6. [Stackflow discussion on hidden state initialization](https://stats.stackexchange.com/questions/224737/best-way-to-initialize-lstm-state)
- 7. [Pytorch discussion on hidden state initialization](https://discuss.pytorch.org/t/initialization-of-first-hidden-state-in-lstm-and-truncated-bptt/58384)
- 8. [Stackflow discussion on weight initialization](https://stackoverflow.com/questions/20027598/why-should-weights-of-neural-networks-be-initialized-to-random-numbers)
-
+ 
 
 
  
