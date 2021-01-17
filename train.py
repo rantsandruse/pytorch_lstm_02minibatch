@@ -93,7 +93,7 @@ def train(model, train_dataset, val_dataset, loss_fn, optimizer, n_epochs = 5, b
             ypred_batch = model(X_batch, X_lens_batch)
 
             loss = loss_fn(ypred_batch.view(batch_size * seq_len, -1),
-                           y_batch.view(batch_size * seq_len))
+                           y_batch.view(batch_size * seq_len) )
             loss.backward()
             optimizer.step()
 
@@ -122,7 +122,8 @@ def test(model, X_test, X_lengths_test):
     X_test: Test data
     X_lengths_test: Original Test data
 
-    Returns post-softmax probability of individual classes.
+    Returns post-softmax probability of individual classes
+    postprocess padding classification into 0.
     -------
 
     '''
@@ -132,6 +133,7 @@ def test(model, X_test, X_lengths_test):
         # For either NLL loss or cross entropy los
         # Use cross entropy loss
         tag_prob = F.softmax(tag_scores, dim = 1)
+
         return tag_prob
 
 def plot_loss(train_loss, val_loss):

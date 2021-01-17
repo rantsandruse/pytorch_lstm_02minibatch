@@ -53,6 +53,7 @@ class LSTMTagger(nn.Module):
         # The linear layer that maps from hidden state space to tag space
         # output_size = tagset_size - 1 to discount padding tag.
         self.hidden2tag = nn.Linear(hidden_dim, output_size)
+        print(output_size)
 
         # Note: the commented line below is what we will do to train our initial hidden state.
         # self.h_0, self.c_0 = self.init_hidden()

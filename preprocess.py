@@ -28,9 +28,9 @@ def seqs_to_dictionary(training_data: list):
     tag_to_ix: a dictionary mapping tags to indices
     '''
     # Prepare for padding; need to change count to 1 as well.
-    word_to_ix = {'<PAD>':-1}
-    tag_to_ix = {'<PAD>':-1}
-    count1 = count2 = 0
+    word_to_ix = {'<PAD>':0}
+    tag_to_ix = {'<PAD>':0}
+    count1 = count2 = 1
 
     for sent, tags in training_data:
         for word in sent:

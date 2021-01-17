@@ -30,10 +30,10 @@ training_data_raw = pd.read_csv("./train.csv")
 # Conversion to pytorch tensor will happen inside training.
 texts = [t.split() for t in training_data_raw["text"].tolist()]
 tags_list = [t.split() for t in training_data_raw["tag"].tolist()]
+
 training_data = list(zip(texts, tags_list))
 
 word_to_ix, tag_to_ix = seqs_to_dictionary(training_data)
-print(tag_to_ix)
 
 X_lens = np.array([len(x) for x in texts])
 y_lens = np.array([len(y) for y in tags_list])
@@ -44,9 +44,9 @@ X = pad_sequences([ seq_to_embedding(x, word_to_ix) for x in texts ], maxlen = 5
 y = pad_sequences([ seq_to_embedding(x, tag_to_ix) for x in tags_list], maxlen = 5,
                   padding = "post", value = 0)
 
-model = LSTMTagger(EMBEDDING_DIM, HIDDEN_DIM, len(word_to_ix), len(tag_to_ix)-1)
+model = LSTMTagger(EMBEDDING_DIM, HIDDEN_DIM, len(word_to_ix), len(tag_to_ix))
 optimizer = optim.SGD(model.parameters(), lr=0.1)
-loss_fn = nn.CrossEntropyLoss(ignore_index=-1, reduction='mean')
+loss_fn = nn.CrossEntropyLoss(ignore_index=0, reduction='mean')
 
 
 # Training
@@ -59,8 +59,12 @@ plot_loss(train_loss, val_loss)
 # Calculate probability for test_dataset
 tag_prob = test(model, test_dataset.tensors[0], test_dataset.tensors[2])
 
-# convert to probability
-print(tag_prob)
 # Translate probability into tag index:
-print(torch.argmax(tag_prob, dim=1))
+# mask paddings
+# Expect something like 1, 2, 3, 1, 2, 2, 3, 1, 2
+pad_mask = (test_dataset.tensors[0] != 0)
+tag_class = torch.argmax(tag_prob, dim=1) * pad_mask.long().view(-1)
+
+print("ground truth classes:", test_dataset.tensors[1])
+print("predicted classes:", tag_class)
 
