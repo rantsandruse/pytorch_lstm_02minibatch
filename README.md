@@ -182,7 +182,7 @@ Beware:
  - nn.LSTM function takes in a tensor with the shape (*seq_len, batch_size, hidden_dim*) by default, which is beneficial to tensor operations, but counterintuitive to human users. Switching out 
       batch_first=True allows you parse in a tensor with the shape (*batch_size, seq_len, hidden_dim*). I would recommend the latter to save you a lot of reshaping trouble when parsing mini-batches.
  - *nn.Embedding* Also uses padding_idx=0 by default so there's not need to explicitly reset. Also pytorch does NOT accommodate negative padding indices. If you use *padding_idx = -1* with *vocab_size = 5*, then 
-     *padding_idx* will become *vocab_size-padding_idx = 4*. It's better to stick to padding_idx=0.  
+     *padding_idx* will become *vocab_size-padding_idx = 4*. It's better to stick to *padding_idx=0*.  
    
   2. Feed it into your LSTM model
      
@@ -201,8 +201,8 @@ Beware:
      
      loss_fn = nn.CrossEntropyLoss(ignore_index=0, size_average=True)     
     
-     Note: You do not need to remove padding from output_size. i.e. Just use len(tag_to_ix) and not len(tag_to_ix)-1 when initializing 
-     output_size for *LSTMTagger*. Paddings will be ignored in cross entropy calculations.
+     Note: You do not need to remove padding from *output_size*. i.e. Use *len(tag_to_ix)* and not *len(tag_to_ix)-1* when initializing 
+     output_size for *LSTMTagger*. 
      
 ## Further Reading 
  1. [What this tutorial was originally based on, including a few fixes/patches discussed above](https://towardsdatascience.com/taming-lstms-variable-sized-mini-batches-and-why-pytorch-is-good-for-your-health-61d35642972e) 
