@@ -212,8 +212,7 @@ Beware:
  4. [How to mask/ignore index in cross entropy loss](https://discuss.pytorch.org/t/ignore-index-in-the-cross-entropy-loss/25006/6)
  5. [Non-zero initial states for recurrent neural networks](https://r2rt.com/non-zero-initial-states-for-recurrent-neural-networks.html)
  5. [Forecasting with recurrent neural networks: 12 tricks (See Trick 3 for  proper initialization](http://www.scs-europe.net/conf/ecms2015/invited/Contribution_Zimmermann_Grothmann_Tietz.pdf)
- 
 
-
+## [Next tutorial](https://github.com/rantsandruse/pytorch_lstm_03classifier) 
  
     
