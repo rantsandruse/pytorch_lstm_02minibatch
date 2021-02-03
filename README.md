@@ -83,7 +83,7 @@ random forest & GBM) with stochastic gradient descent based implementation.
         epoch_train_losses.append(np.mean(train_losses))
         epoch_val_losses.append(np.mean(val_losses))
 
-After training is done, we can visualize our training vs. validation loss in the following plot:![plot](output/train_vs_val_loss.png): 
+After training is done, we can visualize our training vs. validation loss in the following plot:![plot](https://github.com/rantsandruse/pytorch_lstm_02minibatch/blob/main/output/train_vs_val_loss.png): 
 
 ## How do we initialize hidden state? 
    In [tutorial 1](https://github.com/rantsandruse/pytorch_lstm_01intro/blob/main/README.md), you may have noticed that we 
@@ -177,13 +177,7 @@ And then we feed it and then feed it into our LSTM network:
      ((i.e. Both ground truth and prediction uses tag class 0, 1, 2 for the meaningful classes, and cross entropy loss ignores padding class -1 accordingly): 
      
     embeds = torch.nn.utils.rnn.pack_padded_sequence(embeds, X_lengths, batch_first=True, enforce_sorted=False)
-    
-Beware:
- - nn.LSTM function takes in a tensor with the shape (*seq_len, batch_size, hidden_dim*) by default, which is beneficial to tensor operations, but counterintuitive to human users. Switching out 
-      batch_first=True allows you parse in a tensor with the shape (*batch_size, seq_len, hidden_dim*). I would recommend the latter to save you a lot of reshaping trouble when parsing mini-batches.
- - *nn.Embedding* Also uses padding_idx=0 by default so there's not need to explicitly reset. Also pytorch does NOT accommodate negative padding indices. If you use *padding_idx = -1* with *vocab_size = 5*, then 
-     *padding_idx* will become *vocab_size-padding_idx = 4*. It's better to stick to *padding_idx=0*.  
-   
+
   2. Feed it into your LSTM model
      
     lstm_out, _ = self.lstm(embeds, hidden_0)
@@ -197,12 +191,19 @@ Beware:
      
   Note: parsing in total_length is a must, otherwise you might run into dimension mismatch.
 
-  4. Last but not least, ask your loss function to ignore the padding using ignore_index=0. 
+  4. Last but not least, ask your loss function to ignore the padding classification using ignore_index=0. 
      
      loss_fn = nn.CrossEntropyLoss(ignore_index=0, size_average=True)     
-    
-     Note: You do not need to remove padding from *output_size*. i.e. Use *len(tag_to_ix)* and not *len(tag_to_ix)-1* when initializing 
+     
+  Note: You do not need to remove padding from *output_size*. i.e. Use *len(tag_to_ix)* and not *len(tag_to_ix)-1* when initializing 
      output_size for *LSTMTagger*. 
+    
+Beware:
+ - nn.LSTM function takes in a tensor with the shape (*seq_len, batch_size, hidden_dim*) by default, which is beneficial to tensor operations, but counterintuitive to human users. Switching out 
+      batch_first=True allows you parse in a tensor with the shape (*batch_size, seq_len, hidden_dim*). I would recommend the latter to save you a lot of reshaping trouble when parsing mini-batches.
+ - *nn.Embedding* Also uses padding_idx=0 by default so there's not need to explicitly set it. Pytorch does NOT accommodate negative padding indices. If you use *padding_idx = -1* with *vocab_size = 5*, then 
+     *padding_idx* will become *vocab_size-padding_idx = 4*. It's better to stick to *padding_idx=0*.
+  
      
 ## Further Reading 
  1. [What this tutorial was originally based on, including a few fixes/patches discussed above](https://towardsdatascience.com/taming-lstms-variable-sized-mini-batches-and-why-pytorch-is-good-for-your-health-61d35642972e) 
